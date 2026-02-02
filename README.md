@@ -1,7 +1,7 @@
-# 🚀 CodeRunner: Secure Remote Code Execution Engine
+# CodeRunner: Secure Remote Code Execution Engine
 
 ## 1. Project Overview
-CodeRunner is a high-performance, secure, and isolated remote code execution (RCE) engine. It allows users to write code in multiple languages (Python, C++, JavaScript) in a browser-based environment and executes it safely in sandboxed Docker containers. This system mimics the core backend infrastructure of platforms like LeetCode or HackerRank.
+CodeRunner is a high-performance, secure, and isolated remote code execution engine. It allows users to write code in multiple languages (Python, C++, JavaScript) in a browser-based environment and executes it safely in sandboxed Docker containers. This system mimics the core backend infrastructure of coding platforms.
 
 ## 2. Problem Statement
 * **Security Risks:** Running user-submitted code on a server is inherently dangerous and can lead to system compromise.
@@ -9,8 +9,8 @@ CodeRunner is a high-performance, secure, and isolated remote code execution (RC
 * **Latency:** Spinning up isolated environments for every request typically incurs high latency (cold starts).
 
 ## 3. Target Users (Personas)
-1.  **Student (Sarah):** Learning to code; needs instant feedback on her algorithms without setting up a local IDE.
-2.  **Instructor (Prof. Alan):** Needs a platform to create coding assignments and auto-grade student submissions.
+1.  **Student (Piyush):** Learning to code; needs instant feedback on her algorithms without setting up a local IDE.
+2.  **Instructor (Prof. Suresh):** Needs a platform to create coding assignments and auto-grade student submissions.
 3.  **Platform Developer (DevOps Dave):** Wants to integrate a secure "Run Code" button into his educational blog or documentation site.
 
 ## 4. Vision Statement
