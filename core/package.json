@@ -22,9 +22,13 @@
   },
   "homepage": "https://github.com/paulonteri/code-executer#readme",
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
+    "dotenv": "^17.4.1",
     "express": "^4.17.1",
     "express-formidable": "^1.2.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.4.1",
     "uuid": "^8.2.0"
   },
   "devDependencies": {
