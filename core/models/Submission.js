@@ -33,8 +33,13 @@ const submissionSchema = new mongoose.Schema(
     },
     executionStatus: {
       type: String,
-      enum: ["draft", "success", "error", "judged"],
+      enum: ["draft", "success", "error", "judged", "pending"],
       default: "draft",
+    },
+    processingStatus: {
+      type: String,
+      enum: ["PENDING", "COMPLETED", "FAILED"],
+      default: "COMPLETED",
     },
     verdict: {
       type: String,

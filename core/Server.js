@@ -313,6 +313,29 @@ app.get("/submissions/mine", requireAuth, async (req, res) => {
   }
 });
 
+app.get("/submissions/:id", requireAuth, async (req, res) => {
+  try {
+    const submission = await Submission.findById(req.params.id)
+      .populate("challenge", "title slug difficulty")
+      .populate("user", "name email role");
+
+    if (!submission) {
+      return res.status(404).json({ message: "Submission not found." });
+    }
+
+    const isOwner = submission.user?._id?.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === "admin";
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ message: "Access denied." });
+    }
+
+    return res.json({ submission });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Failed to load submission." });
+  }
+});
+
 app.get(
   "/admin/submissions",
   requireAuth,
@@ -446,55 +469,75 @@ app.post("/judge/submit", requireAuth, async (req, res) => {
         .json({ message: "Language and code are required." });
     }
 
-    const result = await judgeSubmission({
-      language: payload.language,
-      code: payload.code,
-      challenge,
-      visibility: "all",
-    });
-
-    const visibleOutput = result.testResults
-      .map((testResult) => {
-        const parts = [
-          `Case ${testResult.index} (${testResult.visibility})`,
-          testResult.verdict,
-        ];
-
-        if (testResult.expectedOutput) {
-          parts.push(`Expected: ${testResult.expectedOutput}`);
-        }
-
-        if (testResult.actualOutput) {
-          parts.push(`Actual: ${testResult.actualOutput}`);
-        }
-
-        return parts.join(" | ");
-      })
-      .join("\n");
-
     const submission = await Submission.create({
       user: req.user._id,
       challenge: challenge._id,
       title: challenge.title,
       language: payload.language,
       code: payload.code,
-      output: visibleOutput || result.summary,
-      executionStatus: "judged",
-      verdict: result.verdict,
-      timeLimitMs: result.timeLimitMs,
-      memoryLimitMb: result.memoryLimitMb,
-      totalTestCases: result.totalTestCases,
-      passedTestCases: result.passedTestCases,
-      lastRuntimeMs:
-        result.testResults[result.testResults.length - 1]?.runtimeMs || null,
-      testResults: result.testResults,
+      output: "Judging in progress...",
+      executionStatus: "pending",
+      processingStatus: "PENDING",
+      timeLimitMs: challenge.timeLimitMs,
+      memoryLimitMb: challenge.memoryLimitMb,
     });
 
-    const hydratedSubmission = await Submission.findById(submission._id)
-      .populate("challenge", "title slug difficulty")
-      .populate("user", "name email role");
+    res.status(202).json({
+      submissionId: submission._id,
+      processingStatus: "PENDING",
+    });
 
-    return res.json({ result, submission: hydratedSubmission });
+    judgeSubmission({
+      language: payload.language,
+      code: payload.code,
+      challenge,
+      visibility: "all",
+    })
+      .then(async (result) => {
+        const visibleOutput = result.testResults
+          .map((testResult) => {
+            const parts = [
+              `Case ${testResult.index} (${testResult.visibility})`,
+              testResult.verdict,
+            ];
+
+            if (testResult.expectedOutput) {
+              parts.push(`Expected: ${testResult.expectedOutput}`);
+            }
+
+            if (testResult.actualOutput) {
+              parts.push(`Actual: ${testResult.actualOutput}`);
+            }
+
+            return parts.join(" | ");
+          })
+          .join("\n");
+
+        await Submission.findByIdAndUpdate(submission._id, {
+          output: visibleOutput || result.summary,
+          executionStatus: "judged",
+          processingStatus: "COMPLETED",
+          verdict: result.verdict,
+          timeLimitMs: result.timeLimitMs,
+          memoryLimitMb: result.memoryLimitMb,
+          totalTestCases: result.totalTestCases,
+          passedTestCases: result.passedTestCases,
+          lastRuntimeMs:
+            result.testResults[result.testResults.length - 1]?.runtimeMs || null,
+          testResults: result.testResults,
+        });
+      })
+      .catch(async (error) => {
+        console.error(error);
+        await Submission.findByIdAndUpdate(submission._id, {
+          output: error.message || "Judging failed unexpectedly.",
+          executionStatus: "error",
+          processingStatus: "FAILED",
+          verdict: "RE",
+        });
+      });
+
+    return;
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Failed to judge submission." });

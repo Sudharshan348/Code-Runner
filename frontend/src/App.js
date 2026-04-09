@@ -67,6 +67,7 @@ function App() {
   const [studentMessage, setStudentMessage] = useState("");
   const [studentBusy, setStudentBusy] = useState(false);
   const [selectedChallengeId, setSelectedChallengeId] = useState("");
+  const [activeSubmissionId, setActiveSubmissionId] = useState("");
   const [studentForm, setStudentForm] = useState({
     language: "python",
     code: pyDefault,
@@ -363,13 +364,13 @@ function App() {
         buildHeaders(token)
       );
 
+      setActiveSubmissionId(response.data.submissionId);
       setStudentForm((current) => ({
         ...current,
-        verdict: response.data.result.verdict,
-        output: response.data.result.summary,
+        verdict: "PENDING",
+        output: "Judging submission...",
       }));
-      await loadStudentSubmissions(token);
-      setStudentMessage(`Submission judged: ${response.data.result.verdict}`);
+      setStudentMessage("Submission queued. Waiting for verdict...");
     } catch (error) {
       setStudentMessage(
         error?.response?.data?.message || "Failed to submit solution."
@@ -413,6 +414,47 @@ function App() {
       setAdminBusy(false);
     }
   };
+
+  useEffect(() => {
+    if (!activeSubmissionId || !token) {
+      return undefined;
+    }
+
+    const intervalId = setInterval(async () => {
+      try {
+        const response = await axios.get(
+          `${API_BASE}/submissions/${activeSubmissionId}`,
+          buildHeaders(token)
+        );
+        const submission = response.data.submission;
+
+        if (submission.processingStatus === "PENDING") {
+          return;
+        }
+
+        setStudentForm((current) => ({
+          ...current,
+          verdict: submission.verdict || submission.processingStatus,
+          output: submission.output || "",
+        }));
+        setStudentMessage(
+          submission.processingStatus === "COMPLETED"
+            ? `Submission judged: ${submission.verdict}`
+            : "Submission failed during judging."
+        );
+        await loadStudentSubmissions(token);
+        setActiveSubmissionId("");
+      } catch (error) {
+        setStudentMessage(
+          error?.response?.data?.message || "Failed to poll submission status."
+        );
+        setActiveSubmissionId("");
+      }
+    }, 1500);
+
+    return () => clearInterval(intervalId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSubmissionId, token]);
 
   const handleSaveReview = async () => {
     if (!selectedAdminSubmission) {
