@@ -1,0 +1,34 @@
+{
+  "name": "code-executer",
+  "version": "1.0.0",
+  "description": "Remote Code Execution App",
+  "private": true,
+  "main": "Server.js",
+  "scripts": {
+    "start": "node Server.js",
+    "start:watch": "nodemon Server.js",
+    "client": "cmd.exe /c \"cd /d ..\\frontend && set NODE_OPTIONS=--openssl-legacy-provider && yarn start\"",
+    "dev": "node dev.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/paulonteri/code-executer.git"
+  },
+  "author": "Paul Onteri - https://paulonteri.com/",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/paulonteri/code-executer/issues"
+  },
+  "homepage": "https://github.com/paulonteri/code-executer#readme",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.17.1",
+    "express-formidable": "^1.2.0",
+    "uuid": "^8.2.0"
+  },
+  "devDependencies": {
+    "concurrently": "^5.2.0",
+    "nodemon": "^2.0.4"
+  }
+}
