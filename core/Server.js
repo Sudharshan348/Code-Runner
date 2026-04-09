@@ -10,9 +10,12 @@ dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
 
 const { connectDatabase } = require("./db");
 const { seedAdmin } = require("./seedAdmin");
+const { seedChallenges } = require("./seedChallenges");
 const { requireAuth, requireRole } = require("./middleware/auth");
 const User = require("./models/User");
 const Submission = require("./models/Submission");
+const Challenge = require("./models/Challenge");
+const { judgeSubmission } = require("./services/judgeRunner");
 const python = require("./services/python");
 const java = require("./services/java");
 const javascript = require("./services/javascript");
@@ -85,6 +88,29 @@ const normalizeExecutionResult = (payload) => {
   };
 };
 
+const toChallengeResponse = (challenge, includeHidden = false) => {
+  const raw = challenge.toObject ? challenge.toObject() : challenge;
+  return {
+    _id: raw._id,
+    title: raw.title,
+    slug: raw.slug,
+    difficulty: raw.difficulty,
+    problemStatement: raw.problemStatement,
+    inputSpecification: raw.inputSpecification,
+    outputSpecification: raw.outputSpecification,
+    constraintsText: raw.constraintsText,
+    timeLimitMs: raw.timeLimitMs,
+    memoryLimitMb: raw.memoryLimitMb,
+    starterCode: raw.starterCode || {},
+    publicTestCases: raw.publicTestCases || [],
+    hiddenTestCases: includeHidden ? raw.hiddenTestCases || [] : undefined,
+    hiddenTestCaseCount: (raw.hiddenTestCases || []).length,
+    isActive: raw.isActive,
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
+  };
+};
+
 const runLanguage = (language, text, res) => {
   const handlers = {
     python,
@@ -107,6 +133,34 @@ const runLanguage = (language, text, res) => {
 
 app.get("/", (req, res) => {
   res.send("Code Runner backend is live.");
+});
+
+app.get("/challenges", requireAuth, async (req, res) => {
+  try {
+    const challenges = await Challenge.find({ isActive: true }).sort({
+      createdAt: -1,
+    });
+    return res.json({
+      challenges: challenges.map((challenge) => toChallengeResponse(challenge)),
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Failed to load challenges." });
+  }
+});
+
+app.get("/challenges/:id", requireAuth, async (req, res) => {
+  try {
+    const challenge = await Challenge.findById(req.params.id);
+    if (!challenge || !challenge.isActive) {
+      return res.status(404).json({ message: "Challenge not found." });
+    }
+
+    return res.json({ challenge: toChallengeResponse(challenge) });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Failed to load challenge." });
+  }
 });
 
 app.post("/auth/register", async (req, res) => {
@@ -246,9 +300,11 @@ app.post("/submissions", requireAuth, async (req, res) => {
 
 app.get("/submissions/mine", requireAuth, async (req, res) => {
   try {
-    const submissions = await Submission.find({ user: req.user._id }).sort({
-      updatedAt: -1,
-    });
+    const submissions = await Submission.find({ user: req.user._id })
+      .populate("challenge", "title slug difficulty")
+      .sort({
+        updatedAt: -1,
+      });
 
     return res.json({ submissions });
   } catch (error) {
@@ -265,6 +321,7 @@ app.get(
     try {
       const submissions = await Submission.find({})
         .populate("user", "name email role")
+        .populate("challenge", "title slug difficulty")
         .sort({ updatedAt: -1 });
 
       return res.json({ submissions });
@@ -276,6 +333,173 @@ app.get(
     }
   }
 );
+
+app.get(
+  "/admin/challenges",
+  requireAuth,
+  requireRole("admin"),
+  async (req, res) => {
+    try {
+      const challenges = await Challenge.find({}).sort({ createdAt: -1 });
+      return res.json({
+        challenges: challenges.map((challenge) =>
+          toChallengeResponse(challenge, true)
+        ),
+      });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ message: "Failed to load challenges." });
+    }
+  }
+);
+
+app.post(
+  "/admin/challenges",
+  requireAuth,
+  requireRole("admin"),
+  async (req, res) => {
+    try {
+      const payload = getPayload(req);
+      const title = (payload.title || "").trim();
+      const slug = (payload.slug || "")
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, "-");
+
+      if (!title || !slug) {
+        return res
+          .status(422)
+          .json({ message: "Challenge title and slug are required." });
+      }
+
+      const challenge = await Challenge.create({
+        title,
+        slug,
+        difficulty: payload.difficulty || "easy",
+        problemStatement: payload.problemStatement || "",
+        inputSpecification: payload.inputSpecification || "",
+        outputSpecification: payload.outputSpecification || "",
+        constraintsText: payload.constraintsText || "",
+        timeLimitMs: Number(payload.timeLimitMs) || 2000,
+        memoryLimitMb: Number(payload.memoryLimitMb) || 256,
+        publicTestCases: Array.isArray(payload.publicTestCases)
+          ? payload.publicTestCases
+          : [],
+        hiddenTestCases: Array.isArray(payload.hiddenTestCases)
+          ? payload.hiddenTestCases
+          : [],
+        starterCode: payload.starterCode || {},
+        isActive: payload.isActive !== false,
+      });
+
+      return res
+        .status(201)
+        .json({ challenge: toChallengeResponse(challenge, true) });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ message: "Failed to create challenge." });
+    }
+  }
+);
+
+app.post("/judge/run-public", requireAuth, async (req, res) => {
+  try {
+    const payload = getPayload(req);
+    const challenge = await Challenge.findById(payload.challengeId);
+
+    if (!challenge || !challenge.isActive) {
+      return res.status(404).json({ message: "Challenge not found." });
+    }
+
+    if (!payload.code || !payload.language) {
+      return res
+        .status(422)
+        .json({ message: "Language and code are required." });
+    }
+
+    const result = await judgeSubmission({
+      language: payload.language,
+      code: payload.code,
+      challenge,
+      visibility: "public",
+    });
+
+    return res.json({ result });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Failed to run sample tests." });
+  }
+});
+
+app.post("/judge/submit", requireAuth, async (req, res) => {
+  try {
+    const payload = getPayload(req);
+    const challenge = await Challenge.findById(payload.challengeId);
+
+    if (!challenge || !challenge.isActive) {
+      return res.status(404).json({ message: "Challenge not found." });
+    }
+
+    if (!payload.code || !payload.language) {
+      return res
+        .status(422)
+        .json({ message: "Language and code are required." });
+    }
+
+    const result = await judgeSubmission({
+      language: payload.language,
+      code: payload.code,
+      challenge,
+      visibility: "all",
+    });
+
+    const visibleOutput = result.testResults
+      .map((testResult) => {
+        const parts = [
+          `Case ${testResult.index} (${testResult.visibility})`,
+          testResult.verdict,
+        ];
+
+        if (testResult.expectedOutput) {
+          parts.push(`Expected: ${testResult.expectedOutput}`);
+        }
+
+        if (testResult.actualOutput) {
+          parts.push(`Actual: ${testResult.actualOutput}`);
+        }
+
+        return parts.join(" | ");
+      })
+      .join("\n");
+
+    const submission = await Submission.create({
+      user: req.user._id,
+      challenge: challenge._id,
+      title: challenge.title,
+      language: payload.language,
+      code: payload.code,
+      output: visibleOutput || result.summary,
+      executionStatus: "judged",
+      verdict: result.verdict,
+      timeLimitMs: result.timeLimitMs,
+      memoryLimitMb: result.memoryLimitMb,
+      totalTestCases: result.totalTestCases,
+      passedTestCases: result.passedTestCases,
+      lastRuntimeMs:
+        result.testResults[result.testResults.length - 1]?.runtimeMs || null,
+      testResults: result.testResults,
+    });
+
+    const hydratedSubmission = await Submission.findById(submission._id)
+      .populate("challenge", "title slug difficulty")
+      .populate("user", "name email role");
+
+    return res.json({ result, submission: hydratedSubmission });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Failed to judge submission." });
+  }
+});
 
 app.patch(
   "/admin/submissions/:id/review",
@@ -373,6 +597,7 @@ const startServer = async () => {
 
     await connectDatabase();
     await seedAdmin();
+    await seedChallenges();
 
     app.listen(port, () => {
       console.log(`Backend listening at http://localhost:${port}`);

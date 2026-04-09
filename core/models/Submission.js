@@ -7,6 +7,11 @@ const submissionSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    challenge: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Challenge",
+      default: null,
+    },
     title: {
       type: String,
       required: true,
@@ -28,8 +33,52 @@ const submissionSchema = new mongoose.Schema(
     },
     executionStatus: {
       type: String,
-      enum: ["draft", "success", "error"],
+      enum: ["draft", "success", "error", "judged"],
       default: "draft",
+    },
+    verdict: {
+      type: String,
+      enum: ["", "AC", "WA", "TLE", "MLE", "CE", "RE"],
+      default: "",
+    },
+    timeLimitMs: {
+      type: Number,
+      default: null,
+    },
+    memoryLimitMb: {
+      type: Number,
+      default: null,
+    },
+    totalTestCases: {
+      type: Number,
+      default: 0,
+    },
+    passedTestCases: {
+      type: Number,
+      default: 0,
+    },
+    lastRuntimeMs: {
+      type: Number,
+      default: null,
+    },
+    testResults: {
+      type: [
+        {
+          _id: false,
+          index: Number,
+          visibility: {
+            type: String,
+            enum: ["public", "hidden"],
+            default: "hidden",
+          },
+          verdict: String,
+          input: String,
+          expectedOutput: String,
+          actualOutput: String,
+          runtimeMs: Number,
+        },
+      ],
+      default: [],
     },
     adminReviewStatus: {
       type: String,

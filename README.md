@@ -43,7 +43,7 @@ We follow **GitHub Flow**:
 
 [cite_start]CodeRunner is designed using a **Layered Client-Server Architectural Style**[cite: 229]. This ensures a clean separation between the user interface and the high-security execution environment.
 
-### [cite_start]📐 Design Principles Applied [cite: 228]
+### 📐 Design Principles Applied
 - [cite_start]**Modularity:** The system is partitioned into three independent services (Frontend, Backend, and Redis) to ensure it is intellectually manageable[cite: 772, 775].
 - [cite_start]**Functional Cohesion:** Each module, such as the `TaxCalculator` or `ExecutionEngine`, performs exactly one well-defined task[cite: 839, 1010].
 - [cite_start]**Low Coupling:** Subsystems communicate via JSON over HTTP, ensuring that a change in the UI does not require a change in the backend logic[cite: 1024, 1026].

@@ -18,7 +18,8 @@ const missingRuntimeError = (runtime, installHint) => ({
   ERROR: `${runtime} is not installed or not available on PATH. ${installHint}`,
 });
 
-const runCommand = ({ command, args = [], cwd, timeout }, callback) => {
+const runCommand = ({ command, args = [], cwd, timeout, input = "" }, callback) => {
+  const startedAt = Date.now();
   const child = spawn(command, args, {
     cwd,
     shell: false,
@@ -34,6 +35,11 @@ const runCommand = ({ command, args = [], cwd, timeout }, callback) => {
     child.kill();
   }, timeout);
 
+  if (input) {
+    child.stdin.write(input);
+  }
+  child.stdin.end();
+
   child.stdout.on("data", (chunk) => {
     stdout += chunk.toString();
   });
@@ -44,11 +50,13 @@ const runCommand = ({ command, args = [], cwd, timeout }, callback) => {
 
   child.on("error", (error) => {
     clearTimeout(timer);
+    error.durationMs = Date.now() - startedAt;
     callback(error, stdout, stderr);
   });
 
   child.on("close", (code, signal) => {
     clearTimeout(timer);
+    const durationMs = Date.now() - startedAt;
 
     if (code !== 0 || signal) {
       const error = new Error(
@@ -59,21 +67,23 @@ const runCommand = ({ command, args = [], cwd, timeout }, callback) => {
 
       error.code = code;
       error.signal = timedOut ? "SIGTERM" : signal;
+      error.durationMs = durationMs;
       callback(error, stdout, stderr);
       return;
     }
 
-    callback(null, stdout, stderr);
+    callback(null, stdout, stderr, durationMs);
   });
 };
 
-const runShellCommand = ({ command, cwd, timeout }, callback) =>
+const runShellCommand = ({ command, cwd, timeout, input = "" }, callback) =>
   runCommand(
     {
       command: "cmd.exe",
       args: ["/d", "/s", "/c", command],
       cwd,
       timeout,
+      input,
     },
     callback
   );
