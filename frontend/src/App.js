@@ -48,7 +48,20 @@ const parseJsonArray = (value) => {
   if (!Array.isArray(parsed)) {
     throw new Error("Expected a JSON array.");
   }
-  return parsed;
+  return parsed.map((testCase) => ({
+    input:
+      testCase?.input === undefined || testCase?.input === null
+        ? ""
+        : String(testCase.input),
+    expectedOutput:
+      testCase?.expectedOutput === undefined || testCase?.expectedOutput === null
+        ? ""
+        : String(testCase.expectedOutput),
+    explanation:
+      testCase?.explanation === undefined || testCase?.explanation === null
+        ? ""
+        : String(testCase.explanation),
+  }));
 };
 
 function App() {
@@ -493,12 +506,14 @@ function App() {
       <section className="auth-panel">
         <div className="toggle-row">
           <button
+            type="button"
             className={authRole === "student" ? "toggle active" : "toggle"}
             onClick={() => setAuthRole("student")}
           >
             Student Login
           </button>
           <button
+            type="button"
             className={authRole === "admin" ? "toggle active" : "toggle"}
             onClick={() => setAuthRole("admin")}
           >
@@ -507,12 +522,14 @@ function App() {
         </div>
         <div className="mode-row">
           <button
+            type="button"
             className={authMode === "login" ? "mode active" : "mode"}
             onClick={() => setAuthMode("login")}
           >
             Sign In
           </button>
           <button
+            type="button"
             className={authMode === "register" ? "mode active" : "mode"}
             onClick={() => setAuthMode("register")}
           >
@@ -846,7 +863,7 @@ function App() {
         </label>
       </div>
       <div className="action-row">
-        <button className="primary-button" onClick={handleSaveReview} disabled={adminBusy}>
+        <button type="button" className="primary-button" onClick={handleSaveReview} disabled={adminBusy}>
           Save Review
         </button>
       </div>
@@ -944,7 +961,7 @@ function App() {
             <span className={`role-pill role-${user.role}`}>{user.role}</span>
             <h2>{user.name}</h2>
             <p>{user.email}</p>
-            <button className="secondary-button" onClick={handleLogout}>Log Out</button>
+            <button type="button" className="secondary-button" onClick={handleLogout}>Log Out</button>
           </div>
         ) : (
           <div className="session-card">

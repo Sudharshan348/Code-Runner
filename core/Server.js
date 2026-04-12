@@ -88,6 +88,27 @@ const normalizeExecutionResult = (payload) => {
   };
 };
 
+const normalizeTestCases = (value) => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map((testCase) => ({
+    input:
+      testCase?.input === undefined || testCase?.input === null
+        ? ""
+        : String(testCase.input),
+    expectedOutput:
+      testCase?.expectedOutput === undefined || testCase?.expectedOutput === null
+        ? ""
+        : String(testCase.expectedOutput),
+    explanation:
+      testCase?.explanation === undefined || testCase?.explanation === null
+        ? ""
+        : String(testCase.explanation),
+  }));
+};
+
 const toChallengeResponse = (challenge, includeHidden = false) => {
   const raw = challenge.toObject ? challenge.toObject() : challenge;
   return {
@@ -405,12 +426,8 @@ app.post(
         constraintsText: payload.constraintsText || "",
         timeLimitMs: Number(payload.timeLimitMs) || 2000,
         memoryLimitMb: Number(payload.memoryLimitMb) || 256,
-        publicTestCases: Array.isArray(payload.publicTestCases)
-          ? payload.publicTestCases
-          : [],
-        hiddenTestCases: Array.isArray(payload.hiddenTestCases)
-          ? payload.hiddenTestCases
-          : [],
+        publicTestCases: normalizeTestCases(payload.publicTestCases),
+        hiddenTestCases: normalizeTestCases(payload.hiddenTestCases),
         starterCode: payload.starterCode || {},
         isActive: payload.isActive !== false,
       });

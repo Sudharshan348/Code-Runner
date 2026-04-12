@@ -1,16 +1,21 @@
 const mongoose = require("mongoose");
 
+const requireDefinedString = {
+  validator: (value) => typeof value === "string",
+  message: "Path `{PATH}` is required.",
+};
+
 const testCaseSchema = new mongoose.Schema(
   {
     input: {
       type: String,
-      required: true,
       default: "",
+      validate: requireDefinedString,
     },
     expectedOutput: {
       type: String,
-      required: true,
       default: "",
+      validate: requireDefinedString,
     },
     explanation: {
       type: String,

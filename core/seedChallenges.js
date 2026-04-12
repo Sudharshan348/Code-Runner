@@ -10,55 +10,102 @@ const defaultStarterCode = {
 };
 
 const seedChallenges = async () => {
-  const challengeCount = await Challenge.countDocuments();
-  if (challengeCount > 0) {
-    return;
+  const defaultChallenges = [
+    {
+      title: "Sum of Integers",
+      slug: "sum-of-integers",
+      difficulty: "easy",
+      problemStatement:
+        "Given a line of space-separated integers, print the sum of all integers.",
+      inputSpecification:
+        "One line containing zero or more space-separated integers.",
+      outputSpecification:
+        "Print exactly one integer representing the sum of the input values.",
+      constraintsText:
+        "The number of integers can be up to 10^5. Each integer fits in signed 64-bit range.",
+      timeLimitMs: 2000,
+      memoryLimitMb: 256,
+      publicTestCases: [
+        {
+          input: "1 2 3 4\n",
+          expectedOutput: "10\n",
+          explanation: "1 + 2 + 3 + 4 = 10",
+        },
+        {
+          input: "-5 2 8\n",
+          expectedOutput: "5\n",
+          explanation: "-5 + 2 + 8 = 5",
+        },
+      ],
+      hiddenTestCases: [
+        {
+          input: "1000000 2500000 3500000\n",
+          expectedOutput: "7000000\n",
+        },
+        {
+          input: "\n",
+          expectedOutput: "0\n",
+        },
+        {
+          input: "7\n",
+          expectedOutput: "7\n",
+        },
+      ],
+      starterCode: defaultStarterCode,
+    },
+    {
+      title: "Print Hello World",
+      slug: "print-hello-world",
+      difficulty: "easy",
+      problemStatement:
+        "Write a program that prints Hello World exactly as shown.",
+      inputSpecification: "There is no input for this problem.",
+      outputSpecification: 'Print exactly "Hello World".',
+      constraintsText: "Do not print extra spaces or extra lines.",
+      timeLimitMs: 2000,
+      memoryLimitMb: 256,
+      publicTestCases: [
+        {
+          input: "",
+          expectedOutput: "Hello World\n",
+          explanation: "The program should print Hello World.",
+        },
+      ],
+      hiddenTestCases: [
+        {
+          input: "",
+          expectedOutput: "Hello World\n",
+        },
+      ],
+      starterCode: {
+        python: 'print("Hello World")\n',
+        javascript: 'console.log("Hello World");\n',
+        java:
+          'public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello World");\n    }\n}\n',
+        csharp:
+          'using System;\n\npublic class Main\n{\n    public static void Main(string[] args)\n    {\n        Console.WriteLine("Hello World");\n    }\n}\n',
+        golang:
+          'package main\n\nimport "fmt"\n\nfunc main() {\n    fmt.Println("Hello World")\n}\n',
+        rust:
+          'fn main() {\n    println!("Hello World");\n}\n',
+      },
+    },
+  ];
+
+  let seededCount = 0;
+  for (const challenge of defaultChallenges) {
+    const existingChallenge = await Challenge.findOne({ slug: challenge.slug });
+    if (existingChallenge) {
+      continue;
+    }
+
+    await Challenge.create(challenge);
+    seededCount += 1;
   }
 
-  await Challenge.create({
-    title: "Sum of Integers",
-    slug: "sum-of-integers",
-    difficulty: "easy",
-    problemStatement:
-      "Given a line of space-separated integers, print the sum of all integers.",
-    inputSpecification:
-      "One line containing zero or more space-separated integers.",
-    outputSpecification:
-      "Print exactly one integer representing the sum of the input values.",
-    constraintsText:
-      "The number of integers can be up to 10^5. Each integer fits in signed 64-bit range.",
-    timeLimitMs: 2000,
-    memoryLimitMb: 256,
-    publicTestCases: [
-      {
-        input: "1 2 3 4\n",
-        expectedOutput: "10\n",
-        explanation: "1 + 2 + 3 + 4 = 10",
-      },
-      {
-        input: "-5 2 8\n",
-        expectedOutput: "5\n",
-        explanation: "-5 + 2 + 8 = 5",
-      },
-    ],
-    hiddenTestCases: [
-      {
-        input: "1000000 2500000 3500000\n",
-        expectedOutput: "7000000\n",
-      },
-      {
-        input: "\n",
-        expectedOutput: "0\n",
-      },
-      {
-        input: "7\n",
-        expectedOutput: "7\n",
-      },
-    ],
-    starterCode: defaultStarterCode,
-  });
-
-  console.log("Seeded default challenge set.");
+  if (seededCount > 0) {
+    console.log(`Seeded ${seededCount} default challenge(s).`);
+  }
 };
 
 module.exports = { seedChallenges };
